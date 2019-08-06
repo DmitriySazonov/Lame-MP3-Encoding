@@ -1,0 +1,84 @@
+apply plugin: 'com.android.application'
+
+apply plugin: 'kotlin-android'
+
+apply plugin: 'kotlin-android-extensions'
+
+android {
+    compileSdkVersion 28
+    buildToolsVersion "29.0.0"
+    defaultConfig {
+        applicationId "com.whenwhat.audiorecording"
+        minSdkVersion 17
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    externalNativeBuild {
+        cmake {
+            version "3.10.2"
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'androidx.core:core-ktx:1.0.2'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+    implementation 'com.google.android.exoplayer:exoplayer:2.8.3'
+}
+
+def ndkBuildTools() {
+    def rootDir = project.rootDir
+    def localProperties = new File(rootDir, "local.properties")
+    if (localProperties.exists()) {
+        Properties properties = new Properties()
+        localProperties.withInputStream { instr ->
+            properties.load(instr)
+        }
+        def ndkDir = properties.getProperty('sdk.dir') + "/ndk"
+        def version = null
+        for (File file : new File(ndkDir).listFiles()) {
+            if (!file.isHidden())
+                version = file.name
+        }
+        if (version != null) {
+            return ndkDir + "/" + version + "/ndk-build"
+        }
+    }
+    return null
+}
+
+task buldJni {
+
+    File dstDir = project.file("src/main/jniLibs")
+    for (File file : dstDir.listFiles()) {
+        delete file
+    }
+
+    String ndkBuildTools = ndkBuildTools()
+    if (ndkBuildTools == null) {
+        return
+    }
+    try {
+        File jniDir = project.file("src/main/jni")
+        print ndkBuildTools.execute([], jniDir).text
+    } catch (Exception e) {
+        print e
+        return
+    }
+
+    copy {
+        from project.file("src/main/obj/local/")
+        into dstDir
+    }
+}
